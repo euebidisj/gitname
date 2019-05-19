@@ -1,0 +1,204 @@
+BL51 BANKED LINKER/LOCATER V6.22.2.0                                                    04/17/2019  19:02:27  PAGE 1
+
+
+BL51 BANKED LINKER/LOCATER V6.22.2.0, INVOKED BY:
+C:\KEIL_V5\C51\BIN\BL51.EXE .\Objects\display.obj TO .\Objects\动态显示 PRINT (.\Listings\动态显示.m51) RAMSIZE (256)
+
+
+MEMORY MODEL: SMALL
+
+
+INPUT MODULES INCLUDED:
+  .\Objects\display.obj (DISPLAY)
+  C:\KEIL_V5\C51\LIB\C51S.LIB (?C_STARTUP)
+
+
+LINK MAP OF MODULE:  .\Objects\动态显示 (DISPLAY)
+
+
+            TYPE    BASE      LENGTH    RELOCATION   SEGMENT NAME
+            -----------------------------------------------------
+
+            * * * * * * *   D A T A   M E M O R Y   * * * * * * *
+            REG     0000H     0008H     ABSOLUTE     "REG BANK 0"
+            DATA    0008H     000CH     UNIT         ?DT?DISPLAY
+                    0014H     000CH                  *** GAP ***
+            BIT     0020H.0   0000H.1   UNIT         ?BI?DISPLAY
+                    0020H.1   0000H.7                *** GAP ***
+            IDATA   0021H     0001H     UNIT         ?STACK
+
+            * * * * * * *   C O D E   M E M O R Y   * * * * * * *
+            CODE    0000H     0003H     ABSOLUTE     
+                    0003H     0008H                  *** GAP ***
+            CODE    000BH     0003H     ABSOLUTE     
+            CODE    000EH     0048H     UNIT         ?PR?MAIN?DISPLAY
+            CODE    0056H     0033H     UNIT         ?CO?DISPLAY
+            CODE    0089H     002AH     UNIT         ?PR?DISPLAYSCAN?DISPLAY
+            CODE    00B3H     0025H     UNIT         ?PR?TIMER0?DISPLAY
+            CODE    00D8H     0011H     UNIT         ?PR?_SEND_595?DISPLAY
+            CODE    00E9H     000EH     UNIT         ?PR?RTC?DISPLAY
+            CODE    00F7H     000DH     UNIT         ?PR?DISPLAYRTC?DISPLAY
+            CODE    0104H     000CH     UNIT         ?C_C51STARTUP
+
+
+
+OVERLAY MAP OF MODULE:   .\Objects\动态显示 (DISPLAY)
+
+
+SEGMENT
+  +--> CALLED SEGMENT
+---------------------
+?PR?TIMER0?DISPLAY
+  +--> ?PR?DISPLAYSCAN?DISPLAY
+
+?PR?DISPLAYSCAN?DISPLAY
+  +--> ?CO?DISPLAY
+  +--> ?PR?_SEND_595?DISPLAY
+
+*** NEW ROOT ***************************************************
+
+?C_C51STARTUP
+  +--> ?PR?MAIN?DISPLAY
+BL51 BANKED LINKER/LOCATER V6.22.2.0                                                  04/17/2019  19:02:27  PAGE 2
+
+
+
+?PR?MAIN?DISPLAY
+  +--> ?PR?DISPLAYRTC?DISPLAY
+  +--> ?PR?RTC?DISPLAY
+
+
+
+SYMBOL TABLE OF MODULE:  .\Objects\动态显示 (DISPLAY)
+
+  VALUE           TYPE          NAME
+  ----------------------------------
+
+  -------         MODULE        DISPLAY
+  C:0000H         SYMBOL        _ICE_DUMMY_
+  D:0080H         PUBLIC        P0
+  D:0090H         PUBLIC        P1
+  D:00A0H         PUBLIC        P2
+  D:00B0H         PUBLIC        P3
+  D:00C0H         PUBLIC        P4
+  D:00C8H         PUBLIC        P5
+  B:00A8H.7       PUBLIC        EA
+  D:0008H         PUBLIC        LED8
+  D:00A8H         PUBLIC        IE
+  C:00D8H         PUBLIC        _Send_595
+  C:0081H         PUBLIC        T_COM
+  D:00B8H         PUBLIC        IP
+  B:00D0H.7       PUBLIC        CY
+  D:00D8H         PUBLIC        CCON
+  C:000EH         PUBLIC        main
+  B:00C0H.0       PUBLIC        P_HC595_SER
+  B:0020H.0       PUBLIC        B_1ms
+  D:0098H         PUBLIC        SCON
+  D:0089H         PUBLIC        TMOD
+  D:0088H         PUBLIC        TCON
+  B:00C0H.3       PUBLIC        P_HC595_SRCLK
+  D:00F0H         PUBLIC        B
+  D:008EH         PUBLIC        AUXR
+  C:00F7H         PUBLIC        DisplayRTC
+  D:00E0H         PUBLIC        ACC
+  B:00A8H.1       PUBLIC        ET0
+  D:008CH         PUBLIC        TH0
+  C:0056H         PUBLIC        t_display
+  D:008AH         PUBLIC        TL0
+  D:0010H         PUBLIC        shu
+  C:00B3H         PUBLIC        timer0
+  B:0088H.4       PUBLIC        TR0
+  C:0089H         PUBLIC        DisplayScan
+  C:00E9H         PUBLIC        RTC
+  D:0011H         PUBLIC        shu_8
+  D:0012H         PUBLIC        msecond
+  B:00C8H.4       PUBLIC        P_HC595_RCLK
+  D:00D0H         PUBLIC        PSW
+  -------         PROC          RTC
+  C:00E9H         LINE#         43
+  C:00E9H         LINE#         44
+  C:00E9H         LINE#         45
+  C:00F6H         LINE#         46
+BL51 BANKED LINKER/LOCATER V6.22.2.0                                                  04/17/2019  19:02:27  PAGE 3
+
+
+  -------         ENDPROC       RTC
+  -------         PROC          DISPLAYRTC
+  -------         DO            
+  D:0007H         SYMBOL        i
+  -------         ENDDO         
+  C:00F7H         LINE#         48
+  C:00F7H         LINE#         49
+  C:00F7H         LINE#         50
+  C:00F9H         LINE#         51
+  C:0103H         LINE#         52
+  -------         ENDPROC       DISPLAYRTC
+  -------         PROC          MAIN
+  -------         DO            
+  D:0007H         SYMBOL        i
+  -------         ENDDO         
+  C:000EH         LINE#         55
+  C:000EH         LINE#         56
+  C:000EH         LINE#         58
+  C:0011H         LINE#         59
+  C:0013H         LINE#         61
+  C:0016H         LINE#         62
+  C:0019H         LINE#         63
+  C:001CH         LINE#         64
+  C:0022H         LINE#         65
+  C:0024H         LINE#         66
+  C:0026H         LINE#         67
+  C:0028H         LINE#         69
+  C:0033H         LINE#         71
+  C:0033H         LINE#         72
+  C:0033H         LINE#         73
+  C:0036H         LINE#         74
+  C:0036H         LINE#         75
+  C:0038H         LINE#         76
+  C:0049H         LINE#         77
+  C:0049H         LINE#         78
+  C:004EH         LINE#         79
+  C:0051H         LINE#         80
+  C:0054H         LINE#         81
+  C:0054H         LINE#         82
+  C:0054H         LINE#         83
+  -------         ENDPROC       MAIN
+  -------         PROC          _SEND_595
+  D:0007H         SYMBOL        dat
+  -------         DO            
+  D:0006H         SYMBOL        i
+  -------         ENDDO         
+  C:00D8H         LINE#         87
+  C:00D8H         LINE#         88
+  C:00D8H         LINE#         90
+  C:00DAH         LINE#         91
+  C:00DAH         LINE#         92
+  C:00DEH         LINE#         93
+  C:00E0H         LINE#         94
+  C:00E2H         LINE#         95
+  C:00E4H         LINE#         96
+  C:00E8H         LINE#         97
+  -------         ENDPROC       _SEND_595
+BL51 BANKED LINKER/LOCATER V6.22.2.0                                                  04/17/2019  19:02:27  PAGE 4
+
+
+  -------         PROC          DISPLAYSCAN
+  C:0089H         LINE#         100
+  C:0089H         LINE#         101
+  C:0089H         LINE#         102
+  C:0094H         LINE#         103
+  C:00A2H         LINE#         105
+  C:00A4H         LINE#         106
+  C:00A6H         LINE#         107
+  C:00B2H         LINE#         108
+  -------         ENDPROC       DISPLAYSCAN
+  -------         PROC          TIMER0
+  C:00B3H         LINE#         111
+  C:00C4H         LINE#         113
+  C:00C7H         LINE#         114
+  C:00C9H         LINE#         116
+  -------         ENDPROC       TIMER0
+  -------         ENDMOD        DISPLAY
+
+Program Size: data=21.1 xdata=0 code=264
+LINK/LOCATE RUN COMPLETE.  0 WARNING(S),  0 ERROR(S)

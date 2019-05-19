@@ -1,0 +1,304 @@
+C51 COMPILER V9.57.0.0   TIMER                                                             05/13/2019 15:55:27 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE TIMER
+OBJECT MODULE PLACED IN .\Objects\timer.obj
+COMPILER INVOKED BY: D:\software\keil\C51\BIN\C51.EXE timer.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listin
+                    -gs\timer.lst) TABS(2) OBJECT(.\Objects\timer.obj)
+
+line level    source
+
+   1          /***************李海_完成时间_11:08*************/
+   2          #include <stc15w.h>
+   3          #include <intrins.h>
+   4          
+   5          /****************************** 用户定义宏 ***********************************/
+   6          #define   LED_TYPE  0x00  //定义LED类型, 0x00--共阴, 0xff--共阳 秒
+   7          
+   8          /************** 预定义 **************/
+   9          typedef   unsigned char u8;
+  10          typedef   unsigned int  u16;
+  11          typedef   unsigned long u32; 
+  12          
+  13          /*************  本地常量声明  **************/
+  14          u8 code t_display[]={           //标准字库
+  15          //   0    1    2    3    4    5    6    7    8    9    A    B    C    D    E    F
+  16            0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07,0x7F,0x6F,0x77,0x7C,0x39,0x5E,0x79,0x71,
+  17          //black  -     H    J  K    L    N  o   P  U     t    G    Q    r   M    y
+  18            0x00,0x40,0x76,0x1E,0x70,0x38,0x37,0x5C,0x73,0x3E,0x78,0x3d,0x67,0x50,0x37,0x6e,
+  19            0xBF,0x86,0xDB,0xCF,0xE6,0xED,0xFD,0x87,0xFF,0xEF,0x46,0x40}; //0. 1. 2. 3. 4. 5. 6. 7. 8. 9. -1
+  20          
+  21          u8 code T_COM[]={0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80};    //位码
+  22          
+  23          
+  24          /*************  IO口定义  **************/
+  25          sbit    SDA = P1^1;
+  26          sbit    SCL = P1^0;
+  27          sbit  LED7 = P1^7;
+  28          sbit  LED8 = P1^6;
+  29          sbit  LED9 = P4^7;
+  30          sbit  LED10 = P4^6;
+  31          sbit  P_HC595_SER   = P4^0; //pin 14  SER   data input
+  32          sbit  P_HC595_RCLK  = P5^4; //pin 12  RCLk  store (latch) clock
+  33          sbit  P_HC595_SRCLK = P4^3; //pin 11  SRCLK Shift data clock
+  34          
+  35          /*************  本地变量声明  **************/
+  36          
+  37          u8  LED_8[8];   //显示缓冲
+  38          u8  sun_8=0;    //显示位索引
+  39          bit sec_bit;        //1s标志 
+  40          u8 time[3];
+  41          u16 s_60=500;
+  42          
+  43          /******************2毫秒延时程序********************/
+  44          void delay2us()   //@11.0592MHz
+  45          {
+  46   1        unsigned char i;    
+  47   1        i = 3;
+  48   1        while (--i);
+  49   1      }
+  50          
+  51          /*********************IIC子程序***************************/
+  52          void IIC_start(void)
+  53          {
+  54   1      //  delay2us();
+C51 COMPILER V9.57.0.0   TIMER                                                             05/13/2019 15:55:27 PAGE 2   
+
+  55   1        SCL = 1;
+  56   1        SDA = 1;
+  57   1        delay2us();
+  58   1        SDA = 0;
+  59   1        delay2us();
+  60   1        SCL = 0;
+  61   1        delay2us();
+  62   1      }
+  63          
+  64          void IIC_stop(void)
+  65          {
+  66   1        SDA = 0;
+  67   1        delay2us();
+  68   1        SCL = 1;
+  69   1        delay2us();
+  70   1        SDA = 1;
+  71   1        delay2us();
+  72   1        SCL = 0;
+  73   1        delay2us();
+  74   1        
+  75   1      }
+  76          
+  77          void IIC_ACK(void)
+  78          {
+  79   1        SDA = 0;
+  80   1        delay2us();
+  81   1        SCL = 1;
+  82   1        delay2us();
+  83   1        SCL = 0;
+  84   1        delay2us();
+  85   1      }
+  86          
+  87          void IIC_no_ACK(void)
+  88          {
+  89   1        SDA = 1;
+  90   1        delay2us();
+  91   1        SCL = 1;
+  92   1        delay2us();
+  93   1        SCL = 0;
+  94   1        delay2us();
+  95   1      }
+  96          
+  97          void IIC_C_ACK(void)
+  98          {
+  99   1        SDA = 1;
+ 100   1        delay2us();
+ 101   1        SCL = 1;
+ 102   1        delay2us();
+ 103   1        F0 = SDA;
+ 104   1        SCL = 0;
+ 105   1        delay2us();
+ 106   1      }
+ 107          
+ 108          u8 IIC_R_byte(void)
+ 109          {
+ 110   1        u8 i = 8,dat = 0;
+ 111   1        SDA = 1;
+ 112   1        do 
+ 113   1        {
+ 114   2          SCL = 1;
+ 115   2          delay2us();
+ 116   2          dat <<= 1;
+C51 COMPILER V9.57.0.0   TIMER                                                             05/13/2019 15:55:27 PAGE 3   
+
+ 117   2          if(SDA) dat++;
+ 118   2          delay2us();
+ 119   2          SCL = 0;
+ 120   2          delay2us();
+ 121   2        }while(--i);
+ 122   1        return(dat);
+ 123   1      }
+ 124          
+ 125          void IIC_W_byte(u8 dat)
+ 126          {
+ 127   1        u8 i = 8;
+ 128   1        do
+ 129   1        {
+ 130   2          if(dat & 0x80)  SDA = 1;
+ 131   2          else      SDA = 0;
+ 132   2          dat <<= 1;
+ 133   2          delay2us();
+ 134   2          SCL = 1;
+ 135   2          delay2us();
+ 136   2          SCL = 0;
+ 137   2          delay2us();
+ 138   2        }while(--i);  
+ 139   1      }
+ 140          
+ 141          void WriteNbyte(void)     //写一串数据
+ 142          {
+ 143   1        u8 i=3;
+ 144   1        IIC_start();
+ 145   1        IIC_W_byte(0xA2);
+ 146   1        IIC_C_ACK();
+ 147   1        if(!F0)
+ 148   1        {
+ 149   2          IIC_W_byte(2);
+ 150   2          IIC_C_ACK();
+ 151   2          if(!F0)
+ 152   2          { do
+ 153   3            {
+ 154   4              IIC_W_byte(time[i - 1]);
+ 155   4              IIC_C_ACK();
+ 156   4              if(F0)  break;
+ 157   4            }while(--i);
+ 158   3          }
+ 159   2        }
+ 160   1        IIC_stop();
+ 161   1      }
+ 162          
+ 163          void read_time(void)  //连续读一串数据
+ 164          {
+ 165   1        IIC_start();
+ 166   1        IIC_W_byte(0xA2);
+ 167   1        IIC_C_ACK();
+ 168   1        if(!F0)
+ 169   1        {
+ 170   2          IIC_W_byte(2);
+ 171   2          IIC_C_ACK();
+ 172   2          if(!F0)
+ 173   2          {
+ 174   3            IIC_start();
+ 175   3            IIC_W_byte(0xA3);
+ 176   3            IIC_C_ACK();
+ 177   3            if(!F0)
+ 178   3            {
+C51 COMPILER V9.57.0.0   TIMER                                                             05/13/2019 15:55:27 PAGE 4   
+
+ 179   4              time[0] = IIC_R_byte();
+ 180   4              IIC_ACK();
+ 181   4              time[1] = IIC_R_byte();
+ 182   4              IIC_ACK();
+ 183   4              time[2] = IIC_R_byte();
+ 184   4              IIC_no_ACK();
+ 185   4            }
+ 186   3          }
+ 187   2        }
+ 188   1        IIC_stop();
+ 189   1      
+ 190   1        LED_8[7] = time[0]&0x0f;
+ 191   1        LED_8[6] = (time[0]&0x7f)>>4;
+ 192   1        LED_8[5] = 43;
+ 193   1        LED_8[4] = time[1]&0x0f;
+ 194   1        LED_8[3] = (time[1]&0x7f)>>4;
+ 195   1        LED_8[2] = 43;
+ 196   1        LED_8[1] = time[2]&0x0f;
+ 197   1        LED_8[0] = (time[2]&0x3f)>>4; 
+ 198   1      }
+ 199          
+ 200          /*************** 定时器初始化 *****************/
+ 201          void Timer0Init(void)   //2毫秒@11.0592MHz
+ 202          {
+ 203   1        AUXR |= 0x80;   //定时器时钟1T模式
+ 204   1        TMOD &= 0xF0;   //设置定时器模式
+ 205   1        TL0 = 0x9A;   //设置定时初值
+ 206   1        TH0 = 0xA9;   //设置定时初值
+ 207   1        TF0 = 0;    //清除TF0标志
+ 208   1        TR0 = 1;    //定时器0开始计时
+ 209   1        ET0=1;
+ 210   1      }
+ 211          
+ 212          /**************** 向HC595发送一个字节函数 ******************/
+ 213          void Send_595(u8 dat)
+ 214          {   
+ 215   1        u8  i;
+ 216   1        for(i=0; i<8; i++)
+ 217   1        {
+ 218   2          dat <<= 1;
+ 219   2          P_HC595_SER   = CY;
+ 220   2          P_HC595_SRCLK = 1;
+ 221   2          P_HC595_SRCLK = 0;
+ 222   2        }
+ 223   1      }
+ 224          
+ 225          /********************** 显示扫描函数 ************************/
+ 226          void DisplayScan(void)
+ 227          { 
+ 228   1        Send_595(~LED_TYPE ^ T_COM[sun_8]);       //输出位码
+ 229   1        Send_595( LED_TYPE ^ t_display[LED_8[sun_8]]);  //输出段码
+ 230   1      
+ 231   1        P_HC595_RCLK = 1;
+ 232   1        P_HC595_RCLK = 0;             //锁存输出数据
+ 233   1        if(++sun_8 >= 8)  sun_8 = 0;  //8位结束回0
+ 234   1      }
+ 235          
+ 236          
+ 237          /********************** Timer0 2ms中断函数 ************************/
+ 238          void timer0 (void) interrupt 1
+ 239          {
+ 240   1        DisplayScan();  //1ms扫描显示一位
+C51 COMPILER V9.57.0.0   TIMER                                                             05/13/2019 15:55:27 PAGE 5   
+
+ 241   1        if(--s_60 == 0)
+ 242   1        {
+ 243   2          s_60 = 500;
+ 244   2          sec_bit = 1;
+ 245   2          LED10 = ~LED10;
+ 246   2        }
+ 247   1        if(s_60 == 250) LED10 = ~LED10;
+ 248   1      }
+ 249          
+ 250          void main(void)
+ 251          {
+ 252   1        P0M0 = 0;   // IO口初始化
+ 253   1        P0M1 = 0;
+ 254   1        
+ 255   1        Timer0Init();   // 定时器初始化
+ 256   1        EA = 1;     //总中断开关
+ 257   1        ET0 = 1;    //定时器0中断允许
+ 258   1        
+ 259   1        time[0] = 0x12;
+ 260   1        time[1] = 0;
+ 261   1        time[2] = 0;
+ 262   1        WriteNbyte();
+ 263   1        
+ 264   1        while(1)
+ 265   1        {
+ 266   2          if(sec_bit)
+ 267   2          {
+ 268   3            sec_bit=0;
+ 269   3            read_time();
+ 270   3          }   
+ 271   2        } 
+ 272   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    470    ----
+   CONSTANT SIZE    =     52    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     14    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

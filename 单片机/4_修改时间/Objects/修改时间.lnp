@@ -1,0 +1,3 @@
+".\Objects\timer.obj" 
+TO ".\Objects\修改时间" 
+PRINT(".\Listings\修改时间.m51") RAMSIZE(256) 
