@@ -47,9 +47,9 @@ bit B_2ms;			//2ms标志位
 u8 	LED_8[8];		//显示缓冲
 u8	sun_8=0;		//显示位索引
 u8	key_z;			//键值
-u8	Comparison;//比较值
-u8	volt;		//键盘电压			
-u16 adc;		//adc值
+u8	Comparison;		//比较值
+u8	volt;			//键盘电压			
+u16 adc;			//adc值
 /************* 函数声明 ********************/
 void  Q0();
 
@@ -62,14 +62,14 @@ void cc(u16 addr)
 // 打开 IAP 功能(ISP_CONTR.7)=1:允许编程改变Flash, 设置Flash操作等待时间
 // 0x83(晶振<5M)   0x82(晶振<10M)   0x81(晶振<20M)   0x80(晶振<40M)
     ISP_CONTR = 0x82;  
-    ISP_CMD   = 0x03;                  // 用户可以对"Data Flash/EEPROM区"进行扇区擦除
+    ISP_CMD   = 0x03;         // 用户可以对"Data Flash/EEPROM区"进行扇区擦除
     ISP_ADDRL = addr;         // ISP/IAP操作时的地址寄存器低八位，
     ISP_ADDRH = addr>>8;      // ISP/IAP操作时的地址寄存器高八位。
      EA =0;   
     ISP_TRIG = 0x5a;          // 在ISPEN(ISP_CONTR.7)=1时,对ISP_TRIG先写入46h，
     ISP_TRIG = 0xa5;          // 再写入B9h,ISP/IAP命令才会生效。
     _nop_();
-    Q0();                                          // 关闭ISP/IAP
+    Q0();                     // 关闭ISP/IAP
 	EA =1;
 }
 /*┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -79,15 +79,15 @@ void cc(u16 addr)
 void xcx(u16 addr,u8 dat)
 {
     ISP_CONTR = 0x82;                  
-    ISP_CMD   = 0x02;              // 用户可以对"Data Flash/EEPROM区"进行字节编程
+    ISP_CMD   = 0x02;         	 // 用户可以对"Data Flash/EEPROM区"进行字节编程
     ISP_ADDRL = addr;        
     ISP_ADDRH = addr>>8;      
-    ISP_DATA  = dat;          // 数据进ISP_DATA
+    ISP_DATA  = dat;         	 // 数据进ISP_DATA
  //   EA = 0;
     ISP_TRIG = 0x5a;         
     ISP_TRIG = 0xa5;         
     _nop_();
-    Q0();                                          // 关闭ISP/IAP
+    Q0();               		 // 关闭ISP/IAP
 //		EA =1;
 }
 /*┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -101,15 +101,15 @@ u8 dcx(u16 addr)
     u8 dat;
        
     ISP_CONTR = 0x82;                  
-    ISP_CMD   = 0x01;         // 用户可以对"Data Flash/EEPROM区"进行字节读
+    ISP_CMD   = 0x01;        	 // 用户可以对"Data Flash/EEPROM区"进行字节读
     ISP_ADDRL = addr;         
     ISP_ADDRH = addr>>8;      
 //    EA = 0;
     ISP_TRIG = 0x5a;         
     ISP_TRIG = 0xa5;         
     _nop_();
-    dat = ISP_DATA;                          // 取出数据
-    Q0(); 													// 关闭ISP/IAP  
+    dat = ISP_DATA;             // 取出数据
+    Q0(); 						// 关闭ISP/IAP  
 //		EA = 1;	
     return dat;
 }
@@ -156,7 +156,7 @@ void Delay20ms()		//@11.0592MHz
 }
 
 /*****************200ms延时程序 *******************/
-void Delay200ms()		//@11.0592MHz
+void Delay200ms()			//@11.0592MHz
 {
 	unsigned char i, j, k;
 
@@ -178,12 +178,12 @@ void Delay200ms()		//@11.0592MHz
 /*************** 定时器初始化 *****************/
 void Timer0Init(void)		//2毫秒@11.0592MHz
 {
-	AUXR |= 0x80;		//定时器时钟1T模式
-	TMOD &= 0xF0;		//设置定时器模式
-	TL0 = 0x9A;		//设置定时初值
-	TH0 = 0xA9;		//设置定时初值
-	TF0 = 0;		//清除TF0标志
-	TR0 = 1;		//定时器0开始计时
+	AUXR |= 0x80;			//定时器时钟1T模式
+	TMOD &= 0xF0;			//设置定时器模式
+	TL0 = 0x9A;				//设置定时初值
+	TH0 = 0xA9;				//设置定时初值
+	TF0 = 0;				//清除TF0标志
+	TR0 = 1;				//定时器0开始计时
 	ET0=1;
 }
 
@@ -255,8 +255,8 @@ void lp_s(void)
 /********************** Timer0 2ms中断函数 ************************/
 void timer0 (void) interrupt 1
 {
-	DisplayScan();	//2ms扫描显示
-	B_2ms = 1;		//2ms标志位
+	DisplayScan();				//2ms扫描显示
+	B_2ms = 1;					//2ms标志位
 }
 
 /************************ 主函数 **********************************/
@@ -265,16 +265,16 @@ void main(void)
 	u8 B_10ms = 0;
 	u8 i;
 	u16 B_3s = 0;
-	P0M0 = 0;		// IO口初始化
+	P0M0 = 0;						// IO口初始化
 	P0M1 = 0;
 	
-	Timer0Init();   // 定时器初始化
-	EA = 1;			//总中断开关
-	ET0 = 1;		//定时器0中断允许
+	Timer0Init();   				// 定时器初始化
+	EA = 1;							//总中断开关
+	ET0 = 1;						//定时器0中断允许
 	Comparison = dcx(0xe600);		//读取上次设置的比较值
 	
-	P1ASF = 0x10;		//设置P1.4为模拟量输入功能
-	ADC_CONTR = 0x81;	//打开A/D转换电源，设置输入通道
+	P1ASF = 0x10;					//设置P1.4为模拟量输入功能
+	ADC_CONTR = 0x81;				//打开A/D转换电源，设置输入通道
 	_nop_();
 	_nop_();
 	_nop_();
@@ -286,22 +286,22 @@ void main(void)
 		if(B_2ms)
 		{
 			B_2ms = 0;
-			if(++B_10ms >= 5)		//10ms扫描一次键盘
+			if(++B_10ms >= 5)							//10ms扫描一次键盘
 			{
-				B_10ms = 0;
-				ADC_S();			//读ADC
-				lp_s();				//读加减按键
+				B_10ms = 0;	
+				ADC_S();								//读ADC
+				lp_s();									//读加减按键
 			}
 			
 			if(volt > Comparison)	LED10 = 0;			//比较电压和比较值并显示led10
 			else	LED10 = 1;
 			
-			if(F0)					//判断是否有按键按下
+			if(F0)										//判断是否有按键按下
 			{
 				if(++B_3s >= 1500)
 				{
 					B_3s = 0;
-					cc(0xe600);										//擦除e600h扇区
+					cc(0xe600);							//擦除e600h扇区
 					xcx(0xe600,Comparison);				//数据写入e600h扇区
 					for(i=0;i<=4;i++)
 					{
