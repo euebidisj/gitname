@@ -1,4 +1,4 @@
-//*********李海_时钟
+//*********时钟
 #include <stc15w.h>
 #include <intrins.h>
 
