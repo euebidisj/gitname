@@ -1,0 +1,3 @@
+".\Objects\Ö÷³ÌÐò.obj" 
+TO ".\Objects\test" 
+PRINT(".\Listings\test.m51") RAMSIZE(256) 

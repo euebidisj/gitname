@@ -1,0 +1,3 @@
+".\Objects\主程序.obj" 
+TO ".\Objects\线路检测" 
+PRINT(".\Listings\线路检测.m51") RAMSIZE(256) 

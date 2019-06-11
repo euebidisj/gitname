@@ -1,0 +1,563 @@
+C51 COMPILER V9.57.0.0   ______                                                            06/11/2019 09:18:37 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE ______
+OBJECT MODULE PLACED IN .\Objects\������.obj
+COMPILER INVOKED BY: D:\software\keil\C51\BIN\C51.EXE ������.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listi
+                    -ngs\������.lst) TABS(2) OBJECT(.\Objects\������.obj)
+
+line level    source
+
+   1          /*************** 2019_05_19 *************/
+   2          #include <stc15w.h>
+   3          #include <intrins.h>
+   4          //#include <LCD1602.h>
+   5          
+   6          /****************************** 用户定义宏 ***********************************/
+   7          #define   LED_TYPE  0x00          //定义LED类型, 0x00--共阴, 0xff--共阳 秒
+   8          #define   L1602_DATAPINS  P0    //数据端口
+   9          
+  10          /****************特殊功能寄存器声明****************/
+  11          sfr ISP_DATA = 0xc2;   
+  12          sfr ISP_ADDRH = 0xc3;     
+  13          sfr ISP_ADDRL = 0xc4;   
+  14          sfr ISP_CMD = 0xc5;   
+  15          sfr ISP_TRIG = 0xc6;      
+  16          sfr ISP_CONTR = 0xc7;
+  17          
+  18          /************** 预定义 **************/
+  19          typedef   unsigned char u8;
+  20          typedef   unsigned int  u16;
+  21          typedef   unsigned long u32; 
+  22          
+  23          /*************  本地常量声明  **************/
+  24          u8 code asc[]={'0','1','2','3','4','5','6','7','8','9'};    //0-9的字符数组
+  25          u8 code asc_1[]={"Line  detectorpower by 2Please press the button to start detection"};
+  26          
+  27          /*************  IO口定义 **************/
+  28          sbit    SDA = P1^1;
+  29          sbit    SCL = P1^0;
+  30          sbit  P_HC595_SER   = P4^0; //pin 14  SER   data input
+  31          sbit  P_HC595_RCLK  = P5^4; //pin 12  RCLk  store (latch) clock
+  32          sbit  P_HC595_SRCLK = P4^3; //pin 11  SRCLK Shift data clock
+  33          sbit  FY = P3^2;        //左移动/开始
+  34          sbit  FY1 = P3^3;       //右移动
+  35          sbit  EN = P2^7;        //已更正（因2.7口有问题，现改为）
+  36          sbit  RW = P2^6;
+  37          sbit  RS= P2^5;
+  38          sbit    G_C = P1^2;             //灯检测的端口
+  39          sbit    F_M = P1^1;             //蜂鸣器控制端口
+  40          sbit  H_W_F = P1^3;     //红外发射控制端口
+  41          
+  42          /*************  本地变量声明  **************/
+  43          bit B_2ms;      //2ms标志位
+  44          u8  xdata R_R[48];      //存储线状态数组
+  45          u8  xdata R_P_R[17];
+  46          u8  xdata R_P_G[17];      
+  47          u8  w_z;      //方格位置变量  
+  48          u8  th1;
+  49          u8  g,h;      //有线的格的数量
+  50          u8  f;
+  51          u16 adc;      //adc值
+  52          /************* 函数声明 ********************/
+  53          void  Q0();
+  54          
+C51 COMPILER V9.57.0.0   ______                                                            06/11/2019 09:18:37 PAGE 2   
+
+  55          /***************** 读忙子程序 **************/
+  56          void read_busy(void)
+  57          {
+  58   1        L1602_DATAPINS = 0xff;
+  59   1        RS = 0;
+  60   1        RW = 1;
+  61   1        EN = 1;
+  62   1        while (P0 & 0x80);            //P0和10000000相与，D7位若不为0，停在此处
+  63   1        EN = 0;                 //若为0跳出进入下一步；这条语句的作用就是检测D7位
+  64   1      }
+  65          
+  66          /*******************************************************************************
+  67          * 函 数 名         : L1602_Delay1ms
+  68          * 函数功能       : 延时函数，延时1ms
+  69          * 输    入         : c
+  70          * 输    出         : 无
+  71          * 说    名         : 该函数是在12MHZ晶振下，12分频单片机的延时。
+  72          *******************************************************************************/
+  73          
+  74          void L1602_Delay1ms(u16 c)   //误差 0us
+  75          {
+  76   1          u8 a,b;
+  77   1        for (; c>0; c--)
+  78   1        {
+  79   2          for (b=199;b>0;b--)
+  80   2          {
+  81   3            for(a=1;a>0;a--);
+  82   3          }      
+  83   2        }   
+  84   1      }
+  85          
+  86          /*******************************************************************************
+  87          * 函 数 名         : LcdWriteCom
+  88          * 函数功能       : 向LCD写入一个字节的命令
+  89          * 输    入         : com
+  90          * 输    出         : 无
+  91          *******************************************************************************/
+  92          
+  93          void LcdWriteCom(u16 com)   //写入命令
+  94          {
+  95   1        EN = 0;             //使能
+  96   1        RS = 0;             //选择发送命令
+  97   1        
+  98   1        L1602_DATAPINS = com;       //放入命令
+  99   1        L1602_Delay1ms(1);      //等待数据稳定
+ 100   1        RW = 0;             //选择写入
+ 101   1      
+ 102   1        EN = 1;               //写入时序
+ 103   1        L1602_Delay1ms(5);        //保持时间
+ 104   1        EN = 0;
+ 105   1      }
+ 106          
+ 107          /*******************************************************************************
+ 108          * 函 数 名         : LcdWriteData
+ 109          * 函数功能       : 向LCD写入一个字节的数据
+ 110          * 输    入         : dat
+ 111          * 输    出         : 无
+ 112          *******************************************************************************/        
+ 113          void LcdWriteData(u16 dat)      //写入数据
+ 114          {
+ 115   1        EN = 0;             //使能清零
+ 116   1        RS = 1;             //选择输入数据
+C51 COMPILER V9.57.0.0   ______                                                            06/11/2019 09:18:37 PAGE 3   
+
+ 117   1        L1602_DATAPINS = dat;       //写入数据
+ 118   1        L1602_Delay1ms(1);
+ 119   1        RW = 0;             //选择写入
+ 120   1      
+ 121   1        EN = 1;               //写入时序
+ 122   1        L1602_Delay1ms(5);        //保持时间
+ 123   1        EN = 0;
+ 124   1      }
+ 125          
+ 126          /*******************************************************************************
+ 127          * 函 数 名       : LcdInit()
+ 128          * 函数功能     : 初始化LCD屏
+ 129          * 输    入       : 无
+ 130          * 输    出       : 无
+ 131          *******************************************************************************/       
+ 132          void LcdInit()              //LCD初始化子程序
+ 133          {
+ 134   1        L1602_Delay1ms(15);
+ 135   1        LcdWriteCom(0x38);  //开显示
+ 136   1        L1602_Delay1ms(5);
+ 137   1        LcdWriteCom(0x38);  //开显示 
+ 138   1        L1602_Delay1ms(5);
+ 139   1        LcdWriteCom(0x38);  //开显示 
+ 140   1        L1602_Delay1ms(5);
+ 141   1        LcdWriteCom(0x0c);  //开显示不显示光标
+ 142   1        read_busy();
+ 143   1        LcdWriteCom(0x04);  //写一个指针加1
+ 144   1        read_busy();
+ 145   1        LcdWriteCom(0x01);  //清屏
+ 146   1        read_busy();
+ 147   1        LcdWriteCom(0x80);  //设置数据指针起点
+ 148   1      }
+ 149          
+ 150          /*********************读adc**********************************/
+ 151          void ADC_S(void)
+ 152          {
+ 153   1          ADC_CONTR = 0xEC;
+ 154   1          _nop_();
+ 155   1          _nop_();
+ 156   1          _nop_();
+ 157   1          _nop_();
+ 158   1          while(~ADC_CONTR & 0x10)
+ 159   1      //    adc = (u16)(ADC_RES & 3);
+ 160   1      //    adc = (adc << 8) | ADC_RESL;  
+ 161   1      //    ADC_CONTR = 0x84;
+ 162   1          adc = ADC_RES;
+ 163   1          adc = (adc << 2) | (ADC_RESL & 3);
+ 164   1      //    LcdWriteCom(0x01);
+ 165   1          LcdWriteCom(0x80+0x40); 
+ 166   1          LcdWriteData(asc[adc/1000]);
+ 167   1          LcdWriteData(asc[adc/100%10]);
+ 168   1          LcdWriteData(asc[adc/10%10]);
+ 169   1          LcdWriteData(asc[adc%10]);
+ 170   1      //    DisplayRTC();
+ 171   1      }
+ 172          
+ 173          /*****************延时程序 *******************/
+ 174          void Delay200ms()   //@11.0592MHz
+ 175          {
+ 176   1        unsigned char i, j, k;
+ 177   1      
+ 178   1        _nop_();
+C51 COMPILER V9.57.0.0   ______                                                            06/11/2019 09:18:37 PAGE 4   
+
+ 179   1        _nop_();
+ 180   1        i = 9;
+ 181   1        j = 104;
+ 182   1        k = 139;
+ 183   1        do
+ 184   1        {
+ 185   2          do
+ 186   2          {
+ 187   3            while (--k);
+ 188   3          } while (--j);
+ 189   2        } while (--i);
+ 190   1      }
+ 191          void Delay20ms()    //@11.0592MHz
+ 192          {
+ 193   1        unsigned char i, j, k;
+ 194   1      
+ 195   1        _nop_();
+ 196   1        _nop_();
+ 197   1        i = 1;
+ 198   1        j = 216;
+ 199   1        k = 35;
+ 200   1        do
+ 201   1        {
+ 202   2          do
+ 203   2          {
+ 204   3            while (--k);
+ 205   3          } while (--j);
+ 206   2        } while (--i);
+ 207   1      }
+ 208          
+ 209          
+ 210          /*********************** 显示左/右移动 *****************************/
+ 211          void Display1(void)
+ 212          {
+ 213   1        u8 i;
+ 214   1        if (F0)
+ 215   1        {
+ 216   2          F0 = 0;
+ 217   2          LcdWriteCom(0x01);          //清屏
+ 218   2          LcdWriteCom(0x80);
+ 219   2          LcdWriteData('R');
+ 220   2          LcdWriteData(':');
+ 221   2          LcdWriteCom(0x80+0x40);
+ 222   2          LcdWriteData('J');
+ 223   2          LcdWriteData(':');
+ 224   2        }
+ 225   1        if (f + 5 < g)              //日光灯的左移
+ 226   1        {
+ 227   2          LcdWriteCom(0x80+0x02);       
+ 228   2          for ( i = f; i < f + 5; i++)    //执行5次
+ 229   2          {
+ 230   3            LcdWriteData(asc[R_P_R[i]/10]);
+ 231   3            LcdWriteData(asc[R_P_R[i]%10]);
+ 232   3            LcdWriteData('/');
+ 233   3          }   
+ 234   2        } 
+ 235   1        if (f + 5 < h)              //节能灯的左移
+ 236   1        {
+ 237   2          LcdWriteCom(0x80+0x42);
+ 238   2          for ( i = f; i < f + 5; i++)    //执行5次
+ 239   2          {
+ 240   3            LcdWriteData(asc[R_P_G[i]/10]);
+C51 COMPILER V9.57.0.0   ______                                                            06/11/2019 09:18:37 PAGE 5   
+
+ 241   3            LcdWriteData(asc[R_P_G[i]%10]);
+ 242   3            LcdWriteData('/');
+ 243   3          }   
+ 244   2        }
+ 245   1        if(g > h)
+ 246   1        {
+ 247   2          if(f + 5 >= g)  f = g - 5;
+ 248   2        }
+ 249   1        else
+ 250   1        {
+ 251   2          if(f + 5 >= h)  f = h - 5;
+ 252   2        } 
+ 253   1      }
+ 254          
+ 255          void Display2(void)
+ 256          {
+ 257   1        u8 i;
+ 258   1        if (f >= 0)             //日光灯的右移
+ 259   1        {
+ 260   2          LcdWriteCom(0x80+0x02);       
+ 261   2          for ( i = f; i < f + 5; i++)    //执行5次
+ 262   2          {
+ 263   3            LcdWriteData(asc[R_P_R[i]/10]);
+ 264   3            LcdWriteData(asc[R_P_R[i]%10]);
+ 265   3            LcdWriteData('/');
+ 266   3          }   
+ 267   2        } 
+ 268   1        if (f >= 0)             //节能灯的右移
+ 269   1        {
+ 270   2          LcdWriteCom(0x80+0x42);
+ 271   2          for ( i = f; i < f + 5; i++)    //执行5次
+ 272   2          {
+ 273   3            LcdWriteData(asc[R_P_G[i]/10]);
+ 274   3            LcdWriteData(asc[R_P_G[i]%10]);
+ 275   3            LcdWriteData('/');
+ 276   3          }   
+ 277   2        }
+ 278   1      //  if(f == 0)  f = 1;
+ 279   1      }
+ 280          
+ 281          /*********************** 显示线格 *********************************/
+ 282          void Display(void)
+ 283          {
+ 284   1        u8 L = 0,i;
+ 285   1        LcdWriteCom(0x01);          //清屏
+ 286   1        LcdWriteCom(0x80);
+ 287   1        LcdWriteData('R');
+ 288   1        LcdWriteData(':');
+ 289   1        for ( i = 0; i < 48; i++)
+ 290   1        {
+ 291   2          if (R_R[i] == 1)        
+ 292   2          {
+ 293   3            if(g < 5)
+ 294   3            {
+ 295   4              LcdWriteData(asc[i/10]);
+ 296   4              LcdWriteData(asc[i%10]);
+ 297   4              LcdWriteData('/');
+ 298   4            }
+ 299   3            R_P_R[L++] = i;
+ 300   3            g++;
+ 301   3          } 
+ 302   2        }
+C51 COMPILER V9.57.0.0   ______                                                            06/11/2019 09:18:37 PAGE 6   
+
+ 303   1        LcdWriteCom(0x80+0x40);
+ 304   1        LcdWriteData('J');
+ 305   1        LcdWriteData(':');
+ 306   1        L = 0;
+ 307   1        for ( i = 0; i < 48; i++)
+ 308   1        {
+ 309   2          if (R_R[i] == 2)
+ 310   2          {
+ 311   3            if(h < 5)
+ 312   3            {
+ 313   4              LcdWriteData(asc[i/10]);
+ 314   4              LcdWriteData(asc[i%10]);
+ 315   4              LcdWriteData('/');
+ 316   4            }
+ 317   3            R_P_G[L++] = i;
+ 318   3            h++;
+ 319   3          }
+ 320   2        }
+ 321   1      }
+ 322          
+ 323          /********************* 位置检测程序 *******************************/
+ 324          u8 w_detection(void)
+ 325          {
+ 326   1        bit a;
+ 327   1        if (adc < 2)  
+ 328   1        {
+ 329   2          w_z++;    //方格数+1
+ 330   2          a = 1;
+ 331   2        }
+ 332   1        else  a = 0;
+ 333   1        LcdWriteCom(0x80+0x00);
+ 334   1        LcdWriteData('G');
+ 335   1        LcdWriteData(asc[w_z/10]);
+ 336   1        LcdWriteData(asc[w_z%10]);
+ 337   1        LcdWriteCom(0x80+0x04);
+ 338   1        LcdWriteData('R');
+ 339   1        LcdWriteCom(0x80+0x08);
+ 340   1        LcdWriteData('J');
+ 341   1        return a;
+ 342   1      }
+ 343          
+ 344          /********************** 线状态检测程序 ****************************/
+ 345          void d_detection(void)                
+ 346          {
+ 347   1        bit z = 1,x =1;
+ 348   1        u8 i,j;
+ 349   1        th1 = 0;
+ 350   1        TH1=0;            //定时器高位，初值设为0
+ 351   1        TL1=0;            //定时器低位，初值设为0
+ 352   1        TF1=0;            //定时器溢出次数，初值设为0
+ 353   1        while(G_C);         //pulse为脉冲的输入引脚
+ 354   1        if (G_C)
+ 355   1        {
+ 356   2      tt:   TR1=1;              //打开定时器
+ 357   2          while(G_C);           //等待下降沿来临
+ 358   2          while(!G_C);          //等待上升沿来临
+ 359   2          TR1=0;            //关闭定时器
+ 360   2          th1=500000/(TH1*256+TL1); //记录值
+ 361   2        }
+ 362   1        else
+ 363   1        {
+ 364   2          i = 54;
+C51 COMPILER V9.57.0.0   ______                                                            06/11/2019 09:18:37 PAGE 7   
+
+ 365   2          j = 199;
+ 366   2          do
+ 367   2          {
+ 368   3            while (--j);
+ 369   3            if(G_C) goto tt;
+ 370   3          } while (--i);
+ 371   2        }
+ 372   1        LcdWriteCom(0x80+0x45);
+ 373   1        LcdWriteData(asc[th1/100%10]);
+ 374   1        LcdWriteData(asc[th1/10%10]);
+ 375   1        LcdWriteData(asc[th1%10]);
+ 376   1      }
+ 377          
+ 378          /*************** 定时器初始化 *****************/
+ 379          void Timer0Init(void)   //2毫秒@11.0592MHz
+ 380          {
+ 381   1        AUXR |= 0x80;   //定时器时钟1T模式
+ 382   1        TMOD &= 0xF0;   //设置定时器模式
+ 383   1        TL0 = 0x9A;   //设置定时初值
+ 384   1        TH0 = 0xA9;   //设置定时初值
+ 385   1        TF0 = 0;    //清除TF0标志
+ 386   1        TR0 = 1;    //定时器0开始计时
+ 387   1        ET0=1;
+ 388   1      }
+ 389          void Timer1Init(void)   //500微秒@11.0592MHz
+ 390          {
+ 391   1        TMOD &= 0x09;   //设置定时器模式
+ 392   1        TL1 = 0;    //设置定时初值
+ 393   1        TH1 = 0;    //设置定时初值
+ 394   1        TF1 = 0;    //清除TF1标志
+ 395   1      
+ 396   1      }
+ 397          
+ 398          /********************** Timer0 2ms中断函数 ************************/
+ 399          void timer0 (void) interrupt 1
+ 400          {
+ 401   1        B_2ms = 1;    //2ms标志位
+ 402   1      }
+ 403          
+ 404          /************************ 主函数 **********************************/
+ 405          void main(void)
+ 406          {
+ 407   1        bit one;
+ 408   1        bit on = 1;
+ 409   1        bit TWO = 1;
+ 410   1        u8 i = 0,c = 0,v = 0,b = 0,n,m;
+ 411   1        H_W_F = 0;
+ 412   1        B_2ms = 0;
+ 413   1          F_M = 1;
+ 414   1          F0 = 1;
+ 415   1        G_C = 1;
+ 416   1        P0M0 = 0;           // IO口初始化
+ 417   1        P0M1 = 0;
+ 418   1        P2M0 = 0;
+ 419   1        P2M1 = 0;           //设置成双向口
+ 420   1      
+ 421   1        LcdInit();            //查看资料说明，不应开机立即执行lcd初始化。
+ 422   1        LcdWriteCom(0x80+0x01);
+ 423   1        for (i = 0; i < 24; i++)        //开机显示内容
+ 424   1        {
+ 425   2          if (i == 14)    LcdWriteCom(0x80+0x45);
+ 426   2          LcdWriteData(asc_1[i]);     
+C51 COMPILER V9.57.0.0   ______                                                            06/11/2019 09:18:37 PAGE 8   
+
+ 427   2        }
+ 428   1          
+ 429   1        Timer0Init();           //定时器0初始化
+ 430   1        Timer1Init();         //定时器1初始化
+ 431   1        
+ 432   1        P1ASF = 0x10;         //设置P1.4为模拟量输入功能
+ 433   1        ADC_CONTR = 0x81;       //打开A/D转换电源，设置输入通道
+ 434   1      
+ 435   1        i = 0;
+ 436   1        one = 1;
+ 437   1      
+ 438   1        while(1)
+ 439   1        {
+ 440   2          if (!FY & one)          //开始程序
+ 441   2          {
+ 442   3            LcdWriteCom(0x01);
+ 443   3            EA = 1;           //总中断开关
+ 444   3            ET0 = 1;          //定时器0中断允许
+ 445   3              ET1 = 1;              //定时器1中断允许
+ 446   3            one = 0;          //开机后执行一次后不在执行
+ 447   3          }
+ 448   2      
+ 449   2          if(B_2ms)
+ 450   2          {
+ 451   3            B_2ms = 0;
+ 452   3            if(w_z < 49)
+ 453   3            {
+ 454   4              if (++m > 250)            //500ms检测一次位置
+ 455   4              {
+ 456   5                m = 0;
+ 457   5                if(w_detection())         //位置检测程序
+ 458   5                {
+ 459   6                  Delay200ms();
+ 460   6                }
+ 461   5              }       
+ 462   4              if (++i >= 25)            //50ms执行一次
+ 463   4              {
+ 464   5                i = 0;
+ 465   5                H_W_F = 1;            //红外发射
+ 466   5                ADC_S();            //检测红外接收电压
+ 467   5                H_W_F = 0;            //红外关闭
+ 468   5                d_detection();
+ 469   5              }
+ 470   4              if (++c >= 25)            //50ms执行一次,线位置存储
+ 471   4              {
+ 472   5                if(w_z > n) on = 1;
+ 473   5                if (th1 > 15 & on)
+ 474   5                {
+ 475   6                  n = w_z;
+ 476   6                  on = 0;
+ 477   6                  R_R[w_z-1] = 1;
+ 478   6                  LcdWriteCom(0x80+0x05);
+ 479   6                  ++v;
+ 480   6                  LcdWriteData(asc[v/10]);
+ 481   6                  LcdWriteData(asc[v%10]);
+ 482   6                  if (th1 >35)
+ 483   6                  {
+ 484   7                    R_R[w_z-1] = 2;
+ 485   7                    LcdWriteCom(0x80+0x09);
+ 486   7                    ++b;
+ 487   7                    LcdWriteData(asc[b/10]);
+ 488   7                    LcdWriteData(asc[b%10]);
+C51 COMPILER V9.57.0.0   ______                                                            06/11/2019 09:18:37 PAGE 9   
+
+ 489   7                    LcdWriteCom(0x80+0x05);
+ 490   7                    --v;
+ 491   7                    LcdWriteData(asc[v/10]);
+ 492   7                    LcdWriteData(asc[v%10]);
+ 493   7                  }         
+ 494   6                }
+ 495   5                if(th1 >15) F_M = 0;
+ 496   5                else    F_M = 1;
+ 497   5              }
+ 498   4            }
+ 499   3            else
+ 500   3            {
+ 501   4              if (TWO)
+ 502   4              {
+ 503   5                TWO = 0;
+ 504   5                Display();      //显示线格
+ 505   5              }
+ 506   4              if(!FY)         //左移
+ 507   4              {
+ 508   5                f++;        //显示线格的数组位置加一
+ 509   5                Delay20ms();
+ 510   5                Display1();
+ 511   5                Delay200ms();
+ 512   5              }
+ 513   4              if (!FY1)       //右移
+ 514   4              {
+ 515   5                if(f != 0) f--;       //显示线格的数组位置减一
+ 516   5                Delay20ms();
+ 517   5                Display2();
+ 518   5                Delay200ms();
+ 519   5              }       
+ 520   4            }     
+ 521   3          }
+ 522   2        } 
+ 523   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1603    ----
+   CONSTANT SIZE    =     77    ----
+   XDATA SIZE       =     82    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      7       7
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1       6
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
